@@ -603,10 +603,9 @@ export const createServer = async (config: any): Promise<any> => {
 
       const { api_base_url, api_key, models } = provider;
 
-      // Build test URL - use /v1/models if available, otherwise just test the base URL
+      // Strategy 1: Try /v1/models endpoint (OpenAI compatible)
       let testUrl = api_base_url;
       if (!testUrl.endsWith('/v1/models')) {
-        // Try to append /v1/models for OpenAI-compatible APIs
         const separator = testUrl.endsWith('/') ? '' : '/';
         testUrl = `${testUrl}${separator}v1/models`;
       }
@@ -631,22 +630,88 @@ export const createServer = async (config: any): Promise<any> => {
 
         clearTimeout(timeoutId);
 
+        // 200-299 = Success
         if (response.ok) {
+          const data = await response.json().catch(() => ({}));
+          const modelCount = data.data?.length || 0;
           return {
             success: true,
-            message: "Provider is reachable",
+            message: `Connected successfully (${modelCount} models available)`,
             status: response.status,
-            statusText: response.statusText
-          };
-        } else {
-          // Even if status is not 200, the provider is reachable
-          return {
-            success: true,
-            message: `Provider responded with status ${response.status}`,
-            status: response.status,
-            statusText: response.statusText
           };
         }
+
+        // 404 = Endpoint not found, try alternative
+        if (response.status === 404) {
+          // Strategy 2: Try base URL health check (some providers support /health or /)
+          const baseUrl = api_base_url.replace(/\/v1\/?$/, '');
+          const healthUrl = `${baseUrl}/health`;
+
+          try {
+            const healthResponse = await fetch(healthUrl, {
+              method: 'GET',
+              headers: { 'Authorization': headers['Authorization'] },
+              signal: controller.signal,
+            });
+
+            if (healthResponse.ok) {
+              return {
+                success: true,
+                message: "Provider is reachable (health endpoint)",
+                status: healthResponse.status,
+              };
+            }
+          } catch {}
+
+          // Strategy 3: Just test if base URL is reachable with a simple request
+          try {
+            const baseResponse = await fetch(baseUrl, {
+              method: 'GET',
+              headers: { 'Authorization': headers['Authorization'] },
+              signal: controller.signal,
+            });
+
+            // 404/405 with proper response means server is reachable
+            if (baseResponse.status < 500) {
+              return {
+                success: true,
+                message: `Provider is reachable (API endpoint may vary)`,
+                status: baseResponse.status,
+              };
+            }
+          } catch {}
+
+          // If all strategies fail but we got a 404 on /v1/models, it might be expected
+          return {
+            success: true,
+            message: "Provider is reachable (/v1/models not supported, but connection works)",
+            status: response.status,
+          };
+        }
+
+        // Other 4xx errors (like 401, 403) = Auth issues but server is reachable
+        if (response.status >= 400 && response.status < 500) {
+          if (response.status === 401 || response.status === 403) {
+            return {
+              success: false,
+              message: "Authentication failed - please check your API key",
+              status: response.status,
+            };
+          }
+          return {
+            success: true,
+            message: `Provider responded (status: ${response.status})`,
+            status: response.status,
+          };
+        }
+
+        // 5xx = Server error, provider is down
+        return {
+          success: false,
+          message: `Provider server error (${response.status})`,
+          status: response.status,
+        };
+
       } catch (fetchError: any) {
         clearTimeout(timeoutId);
 
@@ -655,6 +720,15 @@ export const createServer = async (config: any): Promise<any> => {
             success: false,
             message: "Connection timeout (10s)",
             error: "Timeout"
+          };
+        }
+
+        // Network errors
+        if (fetchError.code === 'ENOTFOUND' || fetchError.message.includes('fetch failed')) {
+          return {
+            success: false,
+            message: "Cannot connect - please check the URL",
+            error: "Network error"
           };
         }
 
