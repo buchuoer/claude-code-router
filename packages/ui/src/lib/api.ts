@@ -345,6 +345,13 @@ class ApiClient {
   async deleteRouteGroup(name: string): Promise<any> {
     return this.delete<any>(`/route-groups/${encodeURIComponent(name)}`);
   }
+
+  // ========== Provider API methods ==========
+
+  // Test provider connectivity
+  async testProvider(provider: { api_base_url: string; api_key?: string; models?: any[] }): Promise<{ success: boolean; message: string; status?: number; statusText?: string; error?: string }> {
+    return this.post<any>('/providers/test', { provider });
+  }
 }
 
 // Create a default instance of the API client

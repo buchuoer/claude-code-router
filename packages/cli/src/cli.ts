@@ -18,6 +18,7 @@ import { join } from "path";
 import { parseStatusLineData, StatusLineInput } from "./utils/statusline";
 import {handlePresetCommand} from "./utils/preset";
 import { handleInstallCommand } from "./utils/installCommand";
+import { switchCommand } from "./utils/switchCommand";
 
 
 const command = process.argv[2];
@@ -36,6 +37,7 @@ const KNOWN_COMMANDS = [
   "activate",
   "env",
   "ui",
+  "switch",
   "-v",
   "version",
   "-h",
@@ -50,18 +52,22 @@ Commands:
   stop          Stop server
   restart       Restart server
   status        Show server status
-  statusline    Integrated statusline
+  statusline    Integrated statusline (reads JSON from stdin)
   code          Execute claude command
   model         Interactive model selection and configuration
   preset        Manage presets (export, install, list, delete)
   install       Install preset from GitHub marketplace
   activate      Output environment variables for shell integration
   ui            Open the web UI in browser
+  switch        Switch route group for current terminal session
   -v, version   Show version information
   -h, help      Show help information
 
 Presets:
   Any preset directory in ~/.claude-code-router/presets/
+
+Route Groups:
+  Saved route groups in ~/.claude-code-router/route-groups/
 
 Examples:
   myccr start
@@ -72,7 +78,8 @@ Examples:
   myccr preset install /path/to/preset     # Install a preset from directory
   myccr preset list                        # List all presets
   myccr install my-preset                  # Install preset from marketplace
-  eval "$(myccr activate)"  # Set environment variables globally
+  eval "$(myccr activate)"                 # Set environment variables globally
+  eval "$(myccr switch production)"        # Use production route group
   myccr ui
 `;
 
@@ -253,7 +260,9 @@ async function main() {
           const input: StatusLineInput = JSON.parse(inputData);
           // Check if preset name is provided as argument
           const presetName = process.argv[3];
-          const statusLine = await parseStatusLineData(input, presetName);
+          // Check if route group name is provided as argument
+          const routeGroupName = process.argv[4];
+          const statusLine = await parseStatusLineData(input, presetName, routeGroupName);
           console.log(statusLine);
         } catch (error) {
           console.error("Error parsing status line data:", error);
@@ -275,6 +284,10 @@ async function main() {
     case "activate":
     case "env":
       await activateCommand();
+      break;
+    case "switch":
+      const routeGroupName = process.argv[3];
+      await switchCommand(routeGroupName);
       break;
     case "code":
       if (!isRunning) {

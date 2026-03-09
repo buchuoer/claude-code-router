@@ -1,4 +1,4 @@
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Trash2, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import type { Provider } from "@/types";
@@ -7,9 +7,12 @@ interface ProviderListProps {
   providers: Provider[];
   onEdit: (index: number) => void;
   onRemove: (index: number) => void;
+  onTest?: (index: number, provider: Provider) => void;
+  testingState?: Record<number, 'idle' | 'testing' | 'success' | 'error'>;
+  testResults?: Record<number, { message: string; success: boolean }>;
 }
 
-export function ProviderList({ providers, onEdit, onRemove }: ProviderListProps) {
+export function ProviderList({ providers, onEdit, onRemove, onTest, testingState, testResults }: ProviderListProps) {
   // Handle case where providers might be null or undefined
   if (!providers || !Array.isArray(providers)) {
     return (
@@ -53,11 +56,20 @@ export function ProviderList({ providers, onEdit, onRemove }: ProviderListProps)
         // Handle case where provider.models might be null or undefined
         const models = Array.isArray(provider.models) ? provider.models : [];
 
+        // Get testing state for this provider
+        const testState = testingState?.[index] || 'idle';
+        const testResult = testResults?.[index];
+
         return (
           <div key={index} className="flex items-start justify-between rounded-md border bg-white p-4 transition-all hover:shadow-md animate-slide-in hover:scale-[1.01]">
             <div className="flex-1 space-y-1.5">
               <p className="text-md font-semibold text-gray-800">{providerName}</p>
               <p className="text-sm text-gray-500">{apiBaseUrl}</p>
+              {testResult && (
+                <p className={`text-xs ${testResult.success ? 'text-green-600' : 'text-red-600'}`}>
+                  {testResult.message}
+                </p>
+              )}
               <div className="flex flex-wrap gap-2 pt-2">
                 {models.map((model, modelIndex) => (
                   // Handle case where model might be null or undefined
@@ -68,6 +80,17 @@ export function ProviderList({ providers, onEdit, onRemove }: ProviderListProps)
               </div>
             </div>
             <div className="ml-4 flex flex-shrink-0 items-center gap-2">
+              {onTest && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => onTest(index, provider)}
+                  className="transition-all-ease hover:scale-110"
+                  disabled={testState === 'testing'}
+                >
+                  <Activity className={`h-4 w-4 ${testState === 'success' ? 'text-green-500' : testState === 'error' ? 'text-red-500' : testState === 'testing' ? 'animate-spin' : ''}`} />
+                </Button>
+              )}
               <Button variant="ghost" size="icon" onClick={() => onEdit(index)} className="transition-all-ease hover:scale-110">
                 <Pencil className="h-4 w-4" />
               </Button>

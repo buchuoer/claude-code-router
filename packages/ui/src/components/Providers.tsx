@@ -39,6 +39,8 @@ export function Providers() {
   const [apiKeyError, setApiKeyError] = useState<string | null>(null);
   const [nameError, setNameError] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState<string>("");
+  const [testingState, setTestingState] = useState<Record<number, 'idle' | 'testing' | 'success' | 'error'>>({});
+  const [testResults, setTestResults] = useState<Record<number, { message: string; success: boolean }>>({});
   const comboInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -72,6 +74,32 @@ export function Providers() {
 
     fetchTransformers();
   }, []);
+
+  // Clear test results after 5 seconds
+  useEffect(() => {
+    const timers = Object.entries(testingState).map(([index, state]) => {
+      if (state === 'success' || state === 'error') {
+        return setTimeout(() => {
+          const idx = parseInt(index, 10);
+          setTestingState(prev => {
+            const newState = { ...prev };
+            delete newState[idx];
+            return newState;
+          });
+          setTestResults(prev => {
+            const newState = { ...prev };
+            delete newState[idx];
+            return newState;
+          });
+        }, 5000);
+      }
+      return null;
+    }).filter(Boolean) as NodeJS.Timeout[];
+
+    return () => {
+      timers.forEach(timer => clearTimeout(timer));
+    };
+  }, [testingState]);
 
   // Handle case where config is null or undefined
   if (!config) {
@@ -212,6 +240,41 @@ export function Providers() {
     newProviders.splice(actualIndex, 1);
     setConfig({ ...config, Providers: newProviders });
     setDeletingProviderIndex(null);
+  };
+
+  // Handle provider connectivity test
+  const handleTestProvider = async (filteredIndex: number, provider: Provider) => {
+    const actualIndex = validProviders.indexOf(filteredProviders[filteredIndex]);
+
+    // Set testing state
+    setTestingState(prev => ({ ...prev, [actualIndex]: 'testing' }));
+    setTestResults(prev => {
+      const newState = { ...prev };
+      delete newState[actualIndex];
+      return newState;
+    });
+
+    try {
+      const result = await api.testProvider({
+        api_base_url: provider.api_base_url,
+        api_key: provider.api_key,
+        models: provider.models
+      });
+
+      if (result.success) {
+        setTestingState(prev => ({ ...prev, [actualIndex]: 'success' }));
+        setTestResults(prev => ({ ...prev, [actualIndex]: { message: result.message, success: true } }));
+      } else {
+        setTestingState(prev => ({ ...prev, [actualIndex]: 'error' }));
+        setTestResults(prev => ({ ...prev, [actualIndex]: { message: result.message || 'Connection failed', success: false } }));
+      }
+    } catch (error: any) {
+      setTestingState(prev => ({ ...prev, [actualIndex]: 'error' }));
+      setTestResults(prev => ({
+        ...prev,
+        [actualIndex]: { message: error.message || 'Failed to connect', success: false }
+      }));
+    }
   };
 
   const handleProviderChange = (_index: number, field: string, value: string) => {
@@ -551,6 +614,9 @@ export function Providers() {
           providers={filteredProviders}
           onEdit={handleEditProvider}
           onRemove={handleSetDeletingProviderIndex}
+          onTest={handleTestProvider}
+          testingState={testingState}
+          testResults={testResults}
         />
       </CardContent>
 

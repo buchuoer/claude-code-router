@@ -32,6 +32,14 @@ export async function executeCodeCommand(
   const config = await readConfigFile();
   const env = await createEnvVariables();
 
+  // Check for route group from environment variable
+  const routeGroup = process.env.CCR_ROUTE_GROUP;
+  if (routeGroup) {
+    // If route group is set, override the base URL
+    const port = config.PORT || 3456;
+    env.ANTHROPIC_BASE_URL = `http://127.0.0.1:${port}/rg/${routeGroup}`;
+  }
+
   // Apply environment variable overrides (from preset's provider configuration)
   if (envOverrides) {
     Object.assign(env, envOverrides);
@@ -48,9 +56,11 @@ export async function executeCodeCommand(
 
   if (statusLineConfig?.enabled) {
     // If using preset, pass preset name to statusline command
+    // Also pass route group name if set
+    const routeGroup = process.env.CCR_ROUTE_GROUP;
     const statuslineCommand = presetName
-      ? `myccr statusline ${presetName}`
-      : "myccr statusline";
+      ? `myccr statusline ${presetName}${routeGroup ? ` ${routeGroup}` : ''}`
+      : `myccr statusline${routeGroup ? ` ${routeGroup}` : ''}`;
 
     settingsFlag.statusLine = {
       type: "command",

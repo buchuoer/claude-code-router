@@ -589,5 +589,86 @@ export const createServer = async (config: any): Promise<any> => {
     }
   });
 
+  // === Provider Connectivity Test endpoint ===
+
+  // Test provider connectivity
+  app.post("/api/providers/test", async (req: any, reply: any) => {
+    try {
+      const { provider } = req.body;
+
+      if (!provider || !provider.api_base_url) {
+        reply.status(400).send({ error: "Provider configuration is required" });
+        return;
+      }
+
+      const { api_base_url, api_key, models } = provider;
+
+      // Build test URL - use /v1/models if available, otherwise just test the base URL
+      let testUrl = api_base_url;
+      if (!testUrl.endsWith('/v1/models')) {
+        // Try to append /v1/models for OpenAI-compatible APIs
+        const separator = testUrl.endsWith('/') ? '' : '/';
+        testUrl = `${testUrl}${separator}v1/models`;
+      }
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+
+      if (api_key) {
+        headers['Authorization'] = `Bearer ${api_key}`;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
+
+      try {
+        const response = await fetch(testUrl, {
+          method: 'GET',
+          headers,
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        if (response.ok) {
+          return {
+            success: true,
+            message: "Provider is reachable",
+            status: response.status,
+            statusText: response.statusText
+          };
+        } else {
+          // Even if status is not 200, the provider is reachable
+          return {
+            success: true,
+            message: `Provider responded with status ${response.status}`,
+            status: response.status,
+            statusText: response.statusText
+          };
+        }
+      } catch (fetchError: any) {
+        clearTimeout(timeoutId);
+
+        if (fetchError.name === 'AbortError') {
+          return {
+            success: false,
+            message: "Connection timeout (10s)",
+            error: "Timeout"
+          };
+        }
+
+        throw fetchError;
+      }
+    } catch (error: any) {
+      console.error("Failed to test provider connectivity:", error);
+      return {
+        success: false,
+        message: error.message || "Failed to connect to provider",
+        error: error.code || error.name || "Unknown error"
+      };
+    }
+  });
+
   return server;
 };

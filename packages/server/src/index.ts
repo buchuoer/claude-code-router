@@ -1,4 +1,3 @@
-import { existsSync } from "fs";
 import { writeFile } from "fs/promises";
 import { homedir } from "os";
 import { join } from "path";
@@ -16,6 +15,8 @@ import { IAgent, ITool } from "./agents/type";
 import agentsManager from "./agents";
 import { EventEmitter } from "node:events";
 import { pluginManager, tokenSpeedPlugin } from "@musistudio/llms";
+import { ROUTE_GROUPS_DIR, listRouteGroups, readRouteGroupFile } from "@CCR/shared";
+import { existsSync, readdirSync } from "fs";
 
 const event = new EventEmitter()
 
@@ -182,8 +183,25 @@ async function getServer(options: RunOptions = {}) {
     logger: loggerConfig,
   });
 
+  // Register preset namespaces
   await Promise.allSettled(
       presets.map(async preset => await serverInstance.registerNamespace(`/preset/${preset.name}`, preset.config))
+  )
+
+  // Register route group namespaces
+  const routeGroups = listRouteGroups();
+  await Promise.allSettled(
+    routeGroups.map(async (routeGroupName) => {
+      const routeGroup = readRouteGroupFile(routeGroupName);
+      if (routeGroup) {
+        await serverInstance.registerNamespace(`/rg/${routeGroupName}`, {
+          Providers: routeGroup.Providers,
+          Router: routeGroup.Router,
+          transformers: routeGroup.transformers,
+          forceUseImageAgent: routeGroup.forceUseImageAgent,
+        });
+      }
+    })
   )
 
   // Register and configure plugins from config
@@ -203,8 +221,16 @@ async function getServer(options: RunOptions = {}) {
   serverInstance.addHook("preHandler", async (req: any, reply: any) => {
     const url = new URL(`http://127.0.0.1${req.url}`);
     req.pathname = url.pathname;
+
+    // Check for preset namespace: /{presetName}/v1/messages
     if (req.pathname.endsWith("/v1/messages") && req.pathname !== "/v1/messages") {
       req.preset = req.pathname.replace("/v1/messages", "").replace("/", "");
+    }
+
+    // Check for route group namespace: /rg/{name}/v1/messages
+    const routeGroupMatch = req.pathname.match(/^\/rg\/([^\/]+)\/v1\/messages$/);
+    if (routeGroupMatch) {
+      req.routeGroup = routeGroupMatch[1];
     }
   })
 

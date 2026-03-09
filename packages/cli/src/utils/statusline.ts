@@ -225,6 +225,12 @@ const DEFAULT_THEME: StatusLineThemeConfig = {
             color: "bright_magenta"
         },
         {
+            type: "routeGroup",
+            icon: "󰚩", // nf-md-robot_outline (same as model, can be changed)
+            text: "{{routeGroup}}",
+            color: "bright_yellow"
+        },
+        {
             type: "model",
             icon: "󰚩", // nf-md-robot_outline
             text: "{{model}}",
@@ -599,7 +605,7 @@ function canDisplayNerdFonts(): boolean {
     return process.env.USE_SIMPLE_ICONS !== 'true';
 }
 
-export async function parseStatusLineData(input: StatusLineInput, presetName?: string): Promise<string> {
+export async function parseStatusLineData(input: StatusLineInput, presetName?: string, routeGroupName?: string): Promise<string> {
     try {
         // Check if simple theme should be used
         const useSimpleTheme = shouldUseSimpleTheme();
@@ -767,7 +773,8 @@ export async function parseStatusLineData(input: StatusLineInput, presetName?: s
             linesRemoved: linesRemoved.toString(),
             netLines: (linesAdded - linesRemoved).toString(),
             version: input.version || '',
-            sessionId: input.session_id.substring(0, 8)
+            sessionId: input.session_id.substring(0, 8),
+            routeGroup: routeGroupName || ''
         };
 
         // Determine the style to use
