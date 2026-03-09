@@ -116,6 +116,14 @@ export interface RouterConfig {
   [key: string]: string | number | undefined;
 }
 
+// Route group (saved Router config snapshot)
+export interface RouteGroup {
+  name: string;
+  description?: string;
+  Router: RouterConfig;
+  forceUseImageAgent?: boolean;
+}
+
 // Transformer configuration
 export interface TransformerConfig {
   path?: string;

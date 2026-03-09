@@ -204,7 +204,7 @@ export const run = async (args: string[] = []) => {
 
   app.post("/api/restart", async () => {
     setTimeout(async () => {
-      spawn("ccr", ["restart"], {
+      spawn("myccr", ["restart"], {
         detached: true,
         stdio: "ignore",
       }).unref();

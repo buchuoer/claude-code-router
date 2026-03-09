@@ -323,6 +323,28 @@ class ApiClient {
   async installPresetFromGitHub(repo: string, name?: string): Promise<any> {
     return this.post<any>('/presets/install/github', { repo, name });
   }
+
+  // ========== Route Group API methods ==========
+
+  // Get all route groups
+  async getRouteGroups(): Promise<{ groups: Array<any> }> {
+    return this.get<{ groups: Array<any> }>('/route-groups');
+  }
+
+  // Get a specific route group
+  async getRouteGroup(name: string): Promise<any> {
+    return this.get<any>(`/route-groups/${encodeURIComponent(name)}`);
+  }
+
+  // Save/overwrite a route group
+  async saveRouteGroup(data: { name: string; description?: string; Router: any; forceUseImageAgent?: boolean }): Promise<any> {
+    return this.post<any>('/route-groups', data);
+  }
+
+  // Delete a route group
+  async deleteRouteGroup(name: string): Promise<any> {
+    return this.delete<any>(`/route-groups/${encodeURIComponent(name)}`);
+  }
 }
 
 // Create a default instance of the API client

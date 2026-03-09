@@ -4,8 +4,13 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { useConfig } from "./ConfigProvider";
 import { Combobox } from "./ui/combobox";
+import { RouteGroupPopover } from "./RouteGroupPopover";
 
-export function Router() {
+interface RouterProps {
+  showToast: (message: string, type: "success" | "error" | "warning") => void;
+}
+
+export function Router({ showToast }: RouterProps) {
   const { t } = useTranslation();
   const { config, setConfig } = useConfig();
 
@@ -67,7 +72,19 @@ export function Router() {
   return (
     <Card className="flex h-full flex-col rounded-lg border shadow-sm">
       <CardHeader className="border-b p-4">
-        <CardTitle className="text-lg">{t("router.title")}</CardTitle>
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-lg">{t("router.title")}</CardTitle>
+          <RouteGroupPopover
+            routerConfig={routerConfig}
+            forceUseImageAgent={config.forceUseImageAgent}
+            onLoad={(group) => setConfig({
+              ...config,
+              Router: group.Router,
+              forceUseImageAgent: group.forceUseImageAgent,
+            })}
+            showToast={showToast}
+          />
+        </div>
       </CardHeader>
       <CardContent className="flex-grow space-y-5 overflow-y-auto p-4">
         <div className="space-y-2">

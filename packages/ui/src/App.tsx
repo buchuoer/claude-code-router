@@ -386,7 +386,7 @@ function App() {
         </div>
         <div className="flex w-2/5 flex-col gap-4">
           <div className="h-3/5">
-            <Router />
+            <Router showToast={(message, type) => setToast({ message, type })} />
           </div>
           <div className="flex-1 overflow-hidden">
             <Transformers />

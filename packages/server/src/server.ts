@@ -12,6 +12,7 @@ import {
   isPresetInstalled,
   extractPreset,
   HOME_DIR,
+  ROUTE_GROUPS_DIR,
   extractMetadata,
   loadConfigFromManifest,
   downloadPresetToTemp,
@@ -483,6 +484,110 @@ export const createServer = async (config: any): Promise<any> => {
     const manifest = JSON.parse(entry.getData().toString('utf-8')) as ManifestFile;
     return manifestToPresetFile(manifest);
   }
+
+  // === Route Group endpoints ===
+
+  // List all route groups
+  app.get("/api/route-groups", async (req: any, reply: any) => {
+    try {
+      if (!existsSync(ROUTE_GROUPS_DIR)) {
+        return { groups: [] };
+      }
+
+      const files = readdirSync(ROUTE_GROUPS_DIR).filter(f => f.endsWith('.json'));
+      const groups = [];
+
+      for (const file of files) {
+        try {
+          const content = readFileSync(join(ROUTE_GROUPS_DIR, file), 'utf-8');
+          groups.push(JSON.parse(content));
+        } catch (error) {
+          console.error(`Failed to read route group ${file}:`, error);
+        }
+      }
+
+      return { groups };
+    } catch (error) {
+      console.error("Failed to get route groups:", error);
+      reply.status(500).send({ error: "Failed to get route groups" });
+    }
+  });
+
+  // Get a specific route group
+  app.get("/api/route-groups/:name", async (req: any, reply: any) => {
+    try {
+      const { name } = req.params;
+      const filePath = join(ROUTE_GROUPS_DIR, `${name}.json`);
+
+      if (!existsSync(filePath)) {
+        reply.status(404).send({ error: "Route group not found" });
+        return;
+      }
+
+      const content = readFileSync(filePath, 'utf-8');
+      return JSON.parse(content);
+    } catch (error: any) {
+      console.error("Failed to get route group:", error);
+      reply.status(500).send({ error: error.message || "Failed to get route group" });
+    }
+  });
+
+  // Save/overwrite a route group
+  app.post("/api/route-groups", async (req: any, reply: any) => {
+    try {
+      const group = req.body;
+
+      if (!group.name) {
+        reply.status(400).send({ error: "Route group name is required" });
+        return;
+      }
+
+      // Validate name (prevent path traversal)
+      if (group.name.includes('..') || group.name.includes('/') || group.name.includes('\\')) {
+        reply.status(400).send({ error: "Invalid route group name" });
+        return;
+      }
+
+      if (!existsSync(ROUTE_GROUPS_DIR)) {
+        mkdirSync(ROUTE_GROUPS_DIR, { recursive: true });
+      }
+
+      const filePath = join(ROUTE_GROUPS_DIR, `${group.name}.json`);
+      writeFileSync(filePath, JSON.stringify(group, null, 2), 'utf-8');
+
+      return { success: true, message: "Route group saved successfully" };
+    } catch (error: any) {
+      console.error("Failed to save route group:", error);
+      reply.status(500).send({ error: error.message || "Failed to save route group" });
+    }
+  });
+
+  // Delete a route group
+  app.delete("/api/route-groups/:name", async (req: any, reply: any) => {
+    try {
+      const { name } = req.params;
+
+      // Validate name (prevent path traversal)
+      if (name.includes('..') || name.includes('/') || name.includes('\\')) {
+        reply.status(400).send({ error: "Invalid route group name" });
+        return;
+      }
+
+      const filePath = join(ROUTE_GROUPS_DIR, `${name}.json`);
+
+      if (!existsSync(filePath)) {
+        reply.status(404).send({ error: "Route group not found" });
+        return;
+      }
+
+      unlinkSync(filePath);
+
+      return { success: true, message: "Route group deleted successfully" };
+    } catch (error: any) {
+      console.error("Failed to delete route group:", error);
+      reply.status(500).send({ error: error.message || "Failed to delete route group" });
+    }
+  });
 
   return server;
 };

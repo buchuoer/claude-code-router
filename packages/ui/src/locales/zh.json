@@ -120,7 +120,25 @@
     "forceUseImageAgent": "强制使用图像代理",
     "selectModel": "选择一个模型...",
     "searchModel": "搜索模型...",
-    "noModelFound": "未找到模型."
+    "noModelFound": "未找到模型.",
+    "routeGroup": {
+      "title": "路由组",
+      "save": "保存",
+      "load": "加载",
+      "delete": "删除",
+      "name": "名称",
+      "namePlaceholder": "输入路由组名称",
+      "description": "描述",
+      "descriptionPlaceholder": "可选描述",
+      "noGroups": "暂无保存的路由组",
+      "saveSuccess": "路由组保存成功",
+      "saveFailed": "路由组保存失败",
+      "loadSuccess": "路由组加载成功",
+      "loadFailed": "路由组加载失败",
+      "deleteSuccess": "路由组删除成功",
+      "deleteFailed": "路由组删除失败",
+      "deleteConfirm": "确定要删除路由组 \"{{name}}\" 吗？"
+    }
   },
   "json_editor": {
     "title": "JSON 编辑器",

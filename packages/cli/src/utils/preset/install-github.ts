@@ -105,8 +105,8 @@ export async function installPresetFromMarket(presetName: string): Promise<{ nam
   if (await isPresetInstalled(installedPresetName)) {
     throw new Error(
       `Preset '${installedPresetName}' is already installed.\n` +
-      `To delete and reinstall, use: ccr preset delete ${installedPresetName}\n` +
-      `To reconfigure without deleting, use: ccr preset install ${installedPresetName}`
+      `To delete and reinstall, use: myccr preset delete ${installedPresetName}\n` +
+      `To reconfigure without deleting, use: myccr preset install ${installedPresetName}`
     );
   }
 
